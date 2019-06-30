@@ -3,8 +3,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResu
 from emoji import emojize
 from uuid import uuid4
 import Reports
+import os
 
 USER = {}
+PORT = int(os.environ.get('PORT', '5000'))
 
 def start(bot, update):
     global USER
@@ -168,11 +170,12 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(button))
     dispatcher.add_handler(InlineQueryHandler(inlinequery))
     dispatcher.add_handler(MessageHandler(Filters.text, message))
-    #dispatcher.add_handler(MessageHandler(Filters.document, document))
     dispatcher.add_handler(CommandHandler("start", start))
-    #dispatcher.add_handler(CommandHandler("help", howto))
 
-    updater.start_polling()
+    updater.start_webhook(listen="0.0.0.0",
+                          port=PORT,
+                         url_path=TOKEN)
+    updater.bot.setWebhook("https://iranmeteorologybot.herokuapp.com/" + TOKEN)
     updater.idle()
 
 
