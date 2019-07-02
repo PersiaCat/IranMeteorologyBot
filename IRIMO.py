@@ -13,7 +13,7 @@ PORT = int(os.environ.get('PORT', '5000'))
 
 def start(bot, update):
     global USER
-    chat_id    = update.effective_user.id
+    chat_id    = update.effective_chat.id  
     #aerodrome  = update.message.text
 
     USER[chat_id] = []
@@ -34,7 +34,6 @@ def start(bot, update):
 
 def inlinequery(bot, update):
     query = update.inline_query.query
-    chat_id = update.effective_user.id
 
     try:
         aerodromes = {
@@ -118,43 +117,11 @@ def inlinequery(bot, update):
         pass
     update.inline_query.answer(result)
 
-def button(bot, update):
-    global USER
-    #This part gets the user call backs on inline keyboard
-    chat_id = update.effective_user.id  # chat_id of the user
-    query = update.callback_query       # call back query of the inline keyboard
-    option_name = query.data            # call back text
-    USER[chat_id].append(option_name)   # adding this text to the USER to track different users status
-
-    chat_id     = query.message.chat_id
-    message_id  = query.message.message_id
-
-    # Back
-    if option_name == "back":
-        USER[chat_id] = USER[chat_id][:-2]
-
-    # Home
-    if len(USER[chat_id]) == 0:
-        #msg, reply_markup = home(chat_id)
-        #bot.editMessageText(text=msg,
-        #                      chat_id=chat_id,
-        #                      message_id=message_id,
-        #                      parse_mode=ParseMode.MARKDOWN,
-        #                      reply_markup=reply_markup)
-        pass
-
-    # Account
-    if len(USER[chat_id]) == 1 and USER[chat_id][0] == 'metar':
-        msg = metar(bot, "OIII", chat_id, message_id)
-        bot.editMessageText(text=msg,
-                              chat_id=chat_id,
-                              message_id=message_id,
-                              parse_mode=ParseMode.MARKDOWN)
 
 def message(bot, update):
     global USER
 
-    chat_id     = update.effective_user.id              # chat_id of the user
+    chat_id     = update.effective_chat.id              # chat_id of the user
     aerodrome   = update.effective_message.text         # chosen inline result by a user
 
     msg = metar(bot, aerodrome, chat_id)
@@ -266,7 +233,6 @@ def main():
     dispatcher = updater.dispatcher
 
     #Handlers
-    dispatcher.add_handler(CallbackQueryHandler(button))
     dispatcher.add_handler(InlineQueryHandler(inlinequery))
     dispatcher.add_handler(MessageHandler(Filters.text, message))
     dispatcher.add_handler(CommandHandler("start", start))
