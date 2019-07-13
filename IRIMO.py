@@ -13,7 +13,7 @@ PORT = int(os.environ.get('PORT', '5000'))
 
 def start(bot, update):
     global USER
-    chat_id    = update.effective_chat.id  
+    chat_id    = update.effective_chat.id
     #aerodrome  = update.message.text
 
     USER[chat_id] = []
@@ -23,7 +23,13 @@ def start(bot, update):
 """
     keyboard = []
     row = []
-    row.append(InlineKeyboardButton('Metar', switch_inline_query_current_chat = 'OI'))
+    row.append(InlineKeyboardButton('METAR and TAF', switch_inline_query_current_chat = 'OI'))
+    row.append(InlineKeyboardButton('Area Forcasts', callback_data = 'area'))
+    keyboard.append(row)
+    row = []
+    row.append(InlineKeyboardButton('SIGMET', callback_data = 'sigmet'))
+    row.append(InlineKeyboardButton('AIRMET', callback_data = 'airmet'))
+
     keyboard.append(row)
     reply_markup = InlineKeyboardMarkup(keyboard)
     #msg = Reports.metar(bot, aerodrome, chat_id)
@@ -132,10 +138,16 @@ def message(bot, update):
 def metar(bot, aerodrome, chat_id):
     bot.sendMessage(chat_id = chat_id,
                     text = "Getting METAR Data ...")
-    r = requests.get("https://www.aviationweather.gov/metar/data?ids=%s&format=decoded&hours=0&taf=off&layout=on" % aerodrome)
-    soup = bs(r.content, "html.parser")
-    table = soup.findAll("td")
-    station = date = time = temperature = pressure_hPa = pressure_inch = dew_point = wind_direction = wind_speed_mph = wind_speed_knot = RH = visibility = weather = clouds = ""
+    metar_data  = requests.get("https://www.aviationweather.gov/metar/data?ids=%s&format=decoded&hours=0&taf=off&layout=on" % aerodrome)
+    metar_soup  = bs(metar_data.content, "html.parser")
+    table       = metar_soup.findAll("td")
+    try:
+        taf_data    = requests.get("https://www.aviationweather.gov/taf/data?ids=%s&format=raw&date=&submit=Get+TAF+data" % aerodrome)
+        taf_soup    = bs(taf_data.content, "html.parser")
+        taf_code    = taf_soup.findAll("code")[0].text
+    except:
+        taf_code = "..."
+    station = date = time = temperature = pressure_hPa = pressure_inch = dew_point = wind_direction = wind_speed_mph = wind_speed_knot = RH = visibility = weather = clouds = "..."
     for td in range(len(table)):
         if ":" in table[td].text:
             if "METAR" in table[td].text:
@@ -149,7 +161,7 @@ def metar(bot, aerodrome, chat_id):
             if "Temperature" in table[td].text:
                 temperature = table[td + 1].text.split(" (")[0].strip()
             if "Pressure" in table[td].text:
-                pressure_hPa  = table[td + 1].text.split(" (")[1][:-1].strip()
+                pressure_hPa  = table[td + 1].text.split(" (")[1][:-1].strip().replace("mb", "hPa")
                 pressure_inch = table[td + 1].text.split(" (")[0].strip()
             if "Dewpoint" in table[td].text:
                 dew_point = table[td + 1].text.split(" (")[0].strip()
@@ -160,21 +172,45 @@ def metar(bot, aerodrome, chat_id):
                 else:
                     wind_direction  = table[td + 1].text.split(" degrees")[0].split("(")[1].strip()
                     wind_speed_knot = table[td + 1].text.split(" at ")[1].split(" knots")[0].split("(")[1].strip()
-                    wind_speed_mph  = table[td + 1].text.split(" at ")[1].split(" MPH")[0].strip()
-                    wind = "from " + wind_direction + " degrees at " + wind_speed_knot + " knots ( " + wind_speed_mph + " MPH )"
+                    #wind_speed_mph  = table[td + 1].text.split(" at ")[1].split(" MPH")[0].strip()
+                    wind = """direction:   %s degrees
+        speed:       %s knots ( %s m/s)""" % (wind_direction,
+                                    wind_speed_knot,
+                                    str(int(wind_speed_knot) / 2))
+
             if "Visibility" in table[td].text:
                 visibility = table[td + 1].text.split(" (")[1][:-1].strip()
+                try:
+                    visibility = visibility.replace("km", "")
+                    visibility = visibility.replace("+", "")
+                except:
+                    pass
+                visibility = round(float(visibility))
+                if visibility == 10:
+                    visibility = "more than 10 km"
+                elif visibility >= 5:
+                    visibility = str(visibility) + " km"
+                else:
+                    visibility = str(visibility * 1000) + " m"
             if "Weather" in table[td].text:
                 weather = table[td + 1].text.split(" (")[1][:-1].strip()
             if "Clouds" in table[td].text:
                 if "NSC" in text:
-                    clouds = "No Significant Cloud"
+                    clouds = "Nill Significant Cloud"
+                elif "unknown" in table[td + 1].text:
+                    clouds = "..."
                 else:
                     clouds = table[td + 1].text.strip()
         else:
             pass
+
     msg = """%s *METAR Data:*
         _%s_
+
+%s *TAF Data:*
+    _%s_
+
+*------* _METAR Decode_ *-----*
 
 %s *Airport:*
         _%s_
@@ -203,6 +239,8 @@ def metar(bot, aerodrome, chat_id):
 %s *Pressure:*
         _%s_""" % (emojize(":information_source:", use_aliases=True),
                 text,
+                emojize(":information_source:", use_aliases=True),
+                taf_code,
                 emojize(":world_map:", use_aliases=True),
                 station,
                 emojize(":date:", use_aliases=True),
@@ -221,6 +259,7 @@ def metar(bot, aerodrome, chat_id):
                 dew_point + " ( " + RH + " )",
                 emojize(":compression:", use_aliases=True),
                 pressure_hPa + " ( " + pressure_inch + " )")
+
     return msg
 
 def main():
