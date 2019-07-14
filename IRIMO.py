@@ -23,7 +23,10 @@ def start(bot, update):
 """
     keyboard = []
     row = []
-    row.append(InlineKeyboardButton('METAR and TAF', switch_inline_query_current_chat = 'OI'))
+    row.append(InlineKeyboardButton('METAR', switch_inline_query_current_chat = 'METAR/OI'))
+    row.append(InlineKeyboardButton('TAF', switch_inline_query_current_chat = 'TAF/OI'))
+    keyboard.append(row)
+    row = []
     row.append(InlineKeyboardButton('Area Forcasts', callback_data = 'area'))
     keyboard.append(row)
     row = []
@@ -108,7 +111,7 @@ def inlinequery(bot, update):
         }
         result = []
         for aerodrome in sorted(aerodromes.keys()):
-            if query.upper() in aerodrome:
+            if query.split("/")[1].upper() in aerodrome:
                 result.append(InlineQueryResultArticle(
                 id=uuid4(),
                 title=aerodrome,
@@ -118,7 +121,7 @@ def inlinequery(bot, update):
                 thumb_width=512,
                 thumb_height=512,
                 input_message_content=InputTextMessageContent(
-                    aerodrome)))
+                    query.split('/')[0].upper() + "/" + aerodrome)))
     except:
         pass
     update.inline_query.answer(result)
@@ -130,10 +133,30 @@ def message(bot, update):
     chat_id     = update.effective_chat.id              # chat_id of the user
     aerodrome   = update.effective_message.text         # chosen inline result by a user
 
-    msg = metar(bot, aerodrome, chat_id)
+    if 'METAR' in aerodrome.upper():
+        msg = metar(bot, aerodrome.split("/")[1], chat_id)
+    elif 'TAF' in aerodrome.upper():
+        msg = taf(bot, aerodrome.split("/")[1], chat_id)
     bot.sendMessage(text=msg,
                           chat_id=chat_id,
                           parse_mode=ParseMode.MARKDOWN)
+
+def taf(bot, aerodrome, chat_id):
+    bot.sendMessage(chat_id = chat_id,
+                    text = "Getting TAF Data ...")
+    try:
+        taf_data    = requests.get("https://www.aviationweather.gov/taf/data?ids=%s&format=raw&date=&submit=Get+TAF+data" % aerodrome)
+        taf_soup    = bs(taf_data.content, "html.parser")
+        taf_code    = taf_soup.findAll("code")[0].text
+    except:
+        taf_code = "..."
+
+    msg = """%s *TAF Data:*
+        _%s_
+    """ % (emojize(":information_source:", use_aliases=True),
+        taf_code)
+
+    return msg
 
 def metar(bot, aerodrome, chat_id):
     bot.sendMessage(chat_id = chat_id,
@@ -141,12 +164,6 @@ def metar(bot, aerodrome, chat_id):
     metar_data  = requests.get("https://www.aviationweather.gov/metar/data?ids=%s&format=decoded&hours=0&taf=off&layout=on" % aerodrome)
     metar_soup  = bs(metar_data.content, "html.parser")
     table       = metar_soup.findAll("td")
-    try:
-        taf_data    = requests.get("https://www.aviationweather.gov/taf/data?ids=%s&format=raw&date=&submit=Get+TAF+data" % aerodrome)
-        taf_soup    = bs(taf_data.content, "html.parser")
-        taf_code    = taf_soup.findAll("code")[0].text
-    except:
-        taf_code = "..."
     station = date = time = temperature = pressure_hPa = pressure_inch = dew_point = wind_direction = wind_speed_mph = wind_speed_knot = RH = visibility = weather = clouds = "..."
     for td in range(len(table)):
         if ":" in table[td].text:
@@ -162,7 +179,11 @@ def metar(bot, aerodrome, chat_id):
                 temperature = table[td + 1].text.split(" (")[0].strip()
             if "Pressure" in table[td].text:
                 pressure_hPa  = table[td + 1].text.split(" (")[1][:-1].strip().replace("mb", "hPa")
-                pressure_inch = table[td + 1].text.split(" (")[0].strip()
+                if " A2" in text:
+                    pressure_inch = text[text.index(" A2") + 2:text.index(" A2") + 4] + "." + text[text.index(" A2") + 4: text.index(" A2") + 6] + " inches Hg"
+                if " A3" in text:
+                    pressure_inch = text[text.index(" A3") + 2:text.index(" A3") + 4] + "." + text[text.index(" A3") + 4: text.index(" A3") + 6] + " inches Hg"
+                #pressure_inch = table[td + 1].text.split(" (")[0].strip()
             if "Dewpoint" in table[td].text:
                 dew_point = table[td + 1].text.split(" (")[0].strip()
                 RH        = table[td + 1].text.split(" [")[1][:-1]
@@ -207,9 +228,6 @@ def metar(bot, aerodrome, chat_id):
     msg = """%s *METAR Data:*
         _%s_
 
-%s *TAF Data:*
-    _%s_
-
 *------* _METAR Decode_ *-----*
 
 %s *Airport:*
@@ -239,8 +257,6 @@ def metar(bot, aerodrome, chat_id):
 %s *Pressure:*
         _%s_""" % (emojize(":information_source:", use_aliases=True),
                 text,
-                emojize(":information_source:", use_aliases=True),
-                taf_code,
                 emojize(":world_map:", use_aliases=True),
                 station,
                 emojize(":date:", use_aliases=True),
