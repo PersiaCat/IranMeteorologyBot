@@ -281,7 +281,7 @@ def metar(bot, aerodrome, chat_id):
 def main():
     #676428333:AAEYXfSt7tDKsqSzEloCwUDlgFdv-2tq3UU  debug
     #873370289:AAEl2az5yYNkZg5cs57J2-_AThtpC_qOVso  main
-    TOKEN = "676428333:AAEYXfSt7tDKsqSzEloCwUDlgFdv-2tq3UU"
+    TOKEN = "873370289:AAEl2az5yYNkZg5cs57J2-_AThtpC_qOVso"
 
     updater = Updater(TOKEN)
 
