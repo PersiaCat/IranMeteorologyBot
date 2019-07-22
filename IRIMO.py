@@ -7,6 +7,8 @@ import os
 import requests
 from lxml import html
 from bs4 import BeautifulSoup as bs
+from selenium import webdriver
+import time
 
 USER = {}
 PORT = int(os.environ.get('PORT', '5000'))
@@ -40,6 +42,104 @@ def start(bot, update):
                     text = msg,
                     parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup)
+
+def button(bot, update):
+    global USER
+    user = update.effective_user.id
+    query = update.callback_query
+    option_name = query.data
+    USER[user].append(option_name)
+
+    chat_id     = query.message.chat_id
+    message_id  = query.message.message_id
+    #This part deals with the users back action
+    if option_name == "back":
+        USER[user] = USER[user][:-2]
+
+    #Area Forcasts or AIRMET or SIGMET
+    """
+    if len(USER[user]) == 1:
+        img = "http://s8.picofile.com/file/8367456084/airportResize.jpg"
+        msg = "اطلاعات کدام منطقه ایران را می خواهید؟"
+        keyboard = []
+        row = []
+        row.append(InlineKeyboardButton('NW', callback_data = 'NW'))
+        row.append(InlineKeyboardButton('N', callback_data = 'N'))
+        row.append(InlineKeyboardButton('NE', callback_data = 'NE'))
+        keyboard.append(row)
+        row = []
+        row.append(InlineKeyboardButton('W', callback_data = 'W'))
+        row.append(InlineKeyboardButton('SW', callback_data = 'SW'))
+        row.append(InlineKeyboardButton('E', callback_data = 'E'))
+        keyboard.append(row)
+        row = []
+        row.append(InlineKeyboardButton('S', callback_data = 'S'))
+        row.append(InlineKeyboardButton('SE', callback_data = 'SE'))
+        row.append(InlineKeyboardButton('SSE', callback_data = 'SSE'))
+        keyboard.append(row)
+        row = []
+        row.append(InlineKeyboardButton('Caspian', callback_data = 'CASPIAN'))
+        row.append(InlineKeyboardButton('Persian Gulf', callback_data = 'PERSIAN'))
+        keyboard.append(row)
+        row = []
+        row.append(InlineKeyboardButton('Tehran', callback_data = 'TEHRAN'))
+        row.append(InlineKeyboardButton('Central', callback_data = 'CENTRAL'))
+        keyboard.append(row)
+        row = []
+        row.append(InlineKeyboardButton('تمامی مناطق', callback_data = 'all'))
+        keyboard.append(row)
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        bot.deleteMessage(chat_id=chat_id,
+                              message_id=message_id)
+
+        bot.sendPhoto(chat_id=chat_id,
+                        photo=img,
+                        caption=msg,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup)
+        """
+
+    if len(USER[user]) == 1 and (USER[user][0] == "area" or USER[user][0] == "airmet"):
+        bot.deleteMessage(chat_id=chat_id,
+                              message_id=message_id)
+        bot.sendMessage(chat_id=chat_id,
+                                text="در حال دریافت اطلاعات...\n\nلطفا صبور باشید")
+        driver = webdriver.Chrome('chromedriver.exe')
+        driver.get("http://www.irimo.ir/far/wd/1218-%D9%87%D9%88%D8%A7%D8%B4%D9%86%D8%A7%D8%B3%DB%8C-%D9%87%D9%88%D8%A7%D9%86%D9%88%D8%B1%D8%AF%DB%8C.html")
+        time.sleep(2)
+        if USER[user][0] == "area":
+            btn = driver.find_elements_by_id("td_613_31633")[0]
+        elif USER[user][0] == "airmet":
+            btn = driver.find_elements_by_id("td_590_31633")[0]
+        btn.click()
+        time.sleep(2)
+        #area = driver.find_elements_by_class_name("bodytooltip")
+        #area = area[0]
+        source= driver.page_source
+        if USER[user][0] == "airmet":
+            start = source.index('OIIX AIRMET')
+        elif USER[user][0] == "area":
+            start = source.index('FAIR31 OIII')
+        end   = source.index("</div></div></div>\n")
+        driver.quit()
+        report = source[start: end]
+        """
+        print(option_name)
+        general_info = report.split("WIND IN MPS")[0] + "WIND IN MPS"
+        other_info   = report.split("WIND IN MPS")[1].split("=")
+        for section in other_info:
+            if option_name == section.split(" ")[0][1:]:
+                msg = general_info + "\n" + section + "="
+        else:
+            if option_name == "all":
+                msg = report
+        """
+        bot.sendMessage(chat_id=chat_id,
+                                message_id=message_id,
+                                text=report)
+
+
 
 def inlinequery(bot, update):
     query = update.inline_query.query
@@ -128,8 +228,6 @@ def inlinequery(bot, update):
 
 
 def message(bot, update):
-    global USER
-
     chat_id     = update.effective_chat.id              # chat_id of the user
     aerodrome   = update.effective_message.text         # chosen inline result by a user
 
@@ -281,7 +379,7 @@ def metar(bot, aerodrome, chat_id):
 def main():
     #676428333:AAEYXfSt7tDKsqSzEloCwUDlgFdv-2tq3UU  debug
     #873370289:AAEl2az5yYNkZg5cs57J2-_AThtpC_qOVso  main
-    TOKEN = "873370289:AAEl2az5yYNkZg5cs57J2-_AThtpC_qOVso"
+    TOKEN = "676428333:AAEYXfSt7tDKsqSzEloCwUDlgFdv-2tq3UU"
 
     updater = Updater(TOKEN)
 
@@ -291,12 +389,13 @@ def main():
     dispatcher.add_handler(InlineQueryHandler(inlinequery))
     dispatcher.add_handler(MessageHandler(Filters.text, message))
     dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CallbackQueryHandler(button))
 
-    updater.start_webhook(listen="0.0.0.0",
-                        port=PORT,
-                        url_path=TOKEN)
-    updater.bot.setWebhook("https://iranmeteorologybot.herokuapp.com/" + TOKEN)
-    #updater.start_polling()
+    #updater.start_webhook(listen="0.0.0.0",
+    #                    port=PORT,
+    #                    url_path=TOKEN)
+    #updater.bot.setWebhook("https://iranmeteorologybot.herokuapp.com/" + TOKEN)
+    updater.start_polling()
     updater.idle()
 
 
