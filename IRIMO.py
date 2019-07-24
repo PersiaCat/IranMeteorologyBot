@@ -8,6 +8,8 @@ import requests
 from lxml import html
 from bs4 import BeautifulSoup as bs
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException, WebDriverException
+from selenium.webdriver.chrome.options import Options
 import time
 
 USER = {}
@@ -105,7 +107,16 @@ def button(bot, update):
                               message_id=message_id)
         bot.sendMessage(chat_id=chat_id,
                                 text="در حال دریافت اطلاعات...\n\nلطفا صبور باشید")
-        driver = webdriver.Chrome('chromedriver.exe')
+        CHROMEDRIVER_PATH = os.environ.get('CHROMEDRIVER_PATH', '/usr/local/bin/chromedriver')
+        GOOGLE_CHROME_BIN = os.environ.get('GOOGLE_CHROME_BIN', '/usr/bin/google-chrome')
+
+
+        options = Options()
+        options.binary_location = GOOGLE_CHROME_BIN
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.headless = True
+        driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH, chrome_options=options)
         driver.get("http://www.irimo.ir/far/wd/1218-%D9%87%D9%88%D8%A7%D8%B4%D9%86%D8%A7%D8%B3%DB%8C-%D9%87%D9%88%D8%A7%D9%86%D9%88%D8%B1%D8%AF%DB%8C.html")
         time.sleep(2)
         if USER[user][0] == "area":
