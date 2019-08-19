@@ -107,8 +107,8 @@ def button(bot, update):
                               message_id=message_id)
         bot.sendMessage(chat_id=chat_id,
                                 text="در حال دریافت اطلاعات...\n\nلطفا صبور باشید")
-        CHROMEDRIVER_PATH = os.environ.get('CHROMEDRIVER_PATH', '/usr/local/bin/chromedriver')
-        GOOGLE_CHROME_BIN = os.environ.get('GOOGLE_CHROME_BIN', '/usr/bin/google-chrome')
+        #CHROMEDRIVER_PATH = os.environ.get('CHROMEDRIVER_PATH', '/usr/local/bin/chromedriver')
+        #GOOGLE_CHROME_BIN = os.environ.get('GOOGLE_CHROME_BIN', '/usr/bin/google-chrome')
 
 
         options = Options()
