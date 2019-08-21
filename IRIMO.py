@@ -143,6 +143,11 @@ def button(bot, update):
             if option_name == "all":
                 msg = report
         """
+        try:
+            report = report.replace("=", "=\n\n---------------------------\n")
+            report = report.replace("WIND IN MPS", "WIND IN MPS\n\n")
+        except:
+            pass
         bot.sendMessage(chat_id=chat_id,
                                 message_id=message_id,
                                 text=report)
